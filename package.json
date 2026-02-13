@@ -9,8 +9,11 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@google-cloud/vision": "^5.3.4",
     "@supabase/supabase-js": "^2.95.3",
+    "form-data": "^4.0.5",
     "next": "16.1.6",
+    "node-fetch": "^2.7.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "zod": "^4.3.6"

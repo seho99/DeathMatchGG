@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 type UploadStatus = "idle" | "uploading" | "success" | "error";
 
@@ -8,6 +9,7 @@ export default function UploadPage() {
   const [file, setFile] = useState<File | null>(null);
   const [status, setStatus] = useState<UploadStatus>("idle");
   const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,8 +31,35 @@ export default function UploadPage() {
         throw new Error("업로드에 실패했습니다.");
       }
 
-      // TODO: OCR 결과와 검토용 폼 페이지로 이동하도록 수정
-      setStatus("success");
+      const data = await res.json();
+
+      // 디버깅: OCR 결과 확인
+      // eslint-disable-next-line no-console
+      console.log("업로드 응답:", {
+        hasOcrResult: !!data.ocrResult,
+        hasParsedPlayers: !!data.parsedPlayers,
+        parsedPlayersCount: data.parsedPlayers?.length || 0,
+        ocrError: data.ocrError,
+      });
+
+      // 스크린샷이 저장된 경로/URL과 OCR 결과를 검토 화면으로 넘김
+      if (data.publicUrl) {
+        const search = new URLSearchParams({
+          imageUrl: data.publicUrl as string,
+        });
+        // OCR 결과가 있으면 URL 파라미터로 전달 (JSON 문자열로 인코딩)
+        if (data.parsedPlayers) {
+          // eslint-disable-next-line no-console
+          console.log("OCR 파싱 결과:", data.parsedPlayers);
+          search.append("ocrData", JSON.stringify(data.parsedPlayers));
+        } else {
+          // eslint-disable-next-line no-console
+          console.warn("OCR 파싱 결과가 없습니다. API 키를 확인하거나 수동 입력을 진행하세요.");
+        }
+        router.push(`/upload/review?${search.toString()}`);
+      } else {
+        setStatus("success");
+      }
     } catch (err) {
       console.error(err);
       setStatus("error");

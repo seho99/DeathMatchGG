@@ -89,8 +89,6 @@ npm run dev          # 개발 서버 실행 (기본 포트: http://localhost:300
 
 ## 5. Supabase 연동 (준비 사항)
 
-> 아직 코드에서 Supabase를 직접 사용하지는 않고, 클라이언트 초기 설정만 해 둔 상태입니다.
-
 1. **Supabase 프로젝트 생성**
 2. 프로젝트 설정에서
    - `Project URL`
@@ -104,12 +102,79 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=여기에_anon_public_key
 ```
 
 4. 서버 재시작 (`npm run dev`) 후, `src/lib/supabaseClient.ts` 에서 이 값을 사용해 클라이언트를 생성함.
+
+5. **Supabase Storage 버킷 생성**
+   - Supabase 콘솔 → `Storage` → `New bucket`
+   - 이름: `screenshots`, **Public bucket** 체크
+   - Storage 정책은 `supabase_schema.sql` 파일 참고
+
+6. **RLS 정책 추가** (필수!)
+   - Supabase 콘솔 → `SQL` 탭
+   - `supabase_schema.sql` 파일 하단의 RLS 정책 SQL 실행
+   - 이걸 안 하면 `matches`, `player_matches` 테이블에 insert가 안 됨!
 5. Supabase 콘솔 → SQL 탭에서 `supabase_schema.sql` 파일 내용을 그대로 붙여 넣고 실행하면
    - `friends`, `matches`, `player_matches` 테이블과 필요한 인덱스가 한 번에 생성됩니다.
 
 ---
 
-## 6. 앞으로 구현할 큰 흐름 (요약)
+## 6. 네이버 CLOVA OCR API 설정
+
+OCR 자동 채우기 기능을 사용하려면 네이버 CLOVA OCR API 키가 필요합니다.  
+**결제 정보 없이 무료로 사용 가능**하며, 월 1,000건까지 무료 할당량이 제공됩니다.
+
+### API 키 발급 방법
+
+1. **네이버 클라우드 플랫폼 접속**
+   - https://www.ncloud.com/ 접속
+   - 네이버 계정으로 로그인
+
+2. **CLOVA OCR 서비스 신청**
+   - 상단 메뉴 → `AI·NAVER API` → `CLOVA OCR` 클릭
+   - 또는 직접: https://www.ncloud.com/product/aiService/ocr
+   - `무료 체험 신청` 또는 `서비스 신청` 클릭
+
+3. **Application 등록**
+   - `Application` 탭 → `Application 등록` 클릭
+   - Application 이름 입력 (예: `deathmatch-gg`)
+   - `CLOVA OCR` 서비스 선택
+   - 등록 완료
+
+4. **도메인 생성 및 API Gateway 연동**
+   - CLOVA OCR 콘솔에서 `Domain` 메뉴로 이동
+   - 도메인 생성 (예: `deathmatch-gg`)
+   - 생성한 도메인에서 `API Gateway 연동` → `자동 연동` 클릭
+   - **API Gateway 이용 신청** 알림이 나오면 `확인` 클릭하여 신청 완료
+
+5. **Invoke URL 및 Secret Key 확인**
+   - API Gateway 연동 완료 후 `Invoke URL` 복사
+   - `Secret Key` 복사
+
+6. **환경변수에 추가**
+   - `C:\DeathmatchGG\web\.env.local` 파일에 아래 추가:
+
+```bash
+CLOVA_OCR_API_URL=http://clovaocr-api-kr.ncloud.com/external/v1/50271/여기에_나머지_경로
+CLOVA_OCR_SECRET_KEY=여기에_Secret_Key_붙여넣기
+```
+
+   - **중요**: `CLOVA_OCR_API_URL`은 API Gateway 연동 후 받은 **Invoke URL 전체**를 입력해야 합니다.
+
+6. **서버 재시작**
+   - `npm run dev` 재시작
+
+### OCR 동작 방식
+
+- 이미지 업로드 시 자동으로 OCR 수행
+- OCR 결과를 파싱해서 플레이어 데이터로 변환 시도
+- `/upload/review` 페이지에서 인풋창에 자동으로 채워짐
+- OCR이 실패하거나 API 키가 없어도 수동 입력은 가능
+
+> **참고**: 현재는 기본 파싱 로직만 구현되어 있고, 실제 롤 결과 화면 구조에 맞게 개선이 필요합니다.  
+> `src/lib/ocr.ts` 파일의 `parseOCRResultToPlayers` 함수를 수정하면 됩니다.
+
+---
+
+## 7. 앞으로 구현할 큰 흐름 (요약)
 
 - **1단계 – DB 연결**
   - Supabase에 friends / matches / player_matches 테이블 생성.
@@ -132,9 +197,24 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=여기에_anon_public_key
 
 ---
 
-## 7. 변경 이력 (Changelog)
+## 8. 변경 이력 (Changelog)
 
-- **2026-02-13**
+- **2026-02-13 (오후)**
+  - OCR 자동 채우기 기능 추가
+    - CLOVA OCR API 연동 (`src/lib/ocr.ts`)
+      - API Gateway 연동 없이 일반 OCR API 직접 사용
+      - 환경변수: `CLOVA_OCR_SECRET_KEY`만 필요
+    - `/api/upload` 에서 이미지 업로드 시 OCR 자동 수행
+    - `/upload/review` 페이지에서 OCR 결과를 인풋창에 자동 채우기
+    - OCR 실패 시에도 수동 입력 가능하도록 처리
+  - Supabase RLS 정책 추가 (`supabase_schema.sql` 업데이트)
+    - `friends`, `matches`, `player_matches` 테이블에 익명 사용자 읽기/쓰기 허용
+  - 친구 관리 페이지 Supabase 연동 완료 (`/friends`)
+    - 친구 목록 조회, 추가 기능 구현
+  - 전적 저장 기능 완료 (`/upload/review`)
+    - `matches`, `player_matches` 테이블에 데이터 저장 확인
+
+- **2026-02-13 (오전)**
   - Next.js + TypeScript + Tailwind 기본 프로젝트 생성.
   - 홈(`/`), 업로드(`/upload`), 친구 관리(`/friends`) 기본 UI 구성.
   - `src/types/domain.ts` 에 Friend / Match / PlayerMatch 타입 정의.

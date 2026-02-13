@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import type { Friend } from "@/types/domain";
+import { supabase } from "@/lib/supabaseClient";
 
 interface FriendForm {
   realName: string;
@@ -9,14 +11,70 @@ interface FriendForm {
 
 export default function FriendsPage() {
   const [form, setForm] = useState<FriendForm>({ realName: "", memo: "" });
+  const [friends, setFriends] = useState<Friend[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // TODO: 실제 Supabase와 연동해서 친구 목록을 불러오고 저장하도록 수정
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    const loadFriends = async () => {
+      setLoading(true);
+      setError(null);
+      const { data, error: fetchError } = await supabase
+        .from("friends")
+        .select("*")
+        .order("created_at", { ascending: true });
+
+      if (fetchError) {
+        // eslint-disable-next-line no-console
+        console.error(fetchError);
+        setError("친구 목록을 불러오는 중 문제가 발생했습니다.");
+      } else if (data) {
+        const mapped: Friend[] = data.map((row: any) => ({
+          id: row.id,
+          realName: row.real_name,
+          memo: row.memo,
+          createdAt: row.created_at,
+        }));
+        setFriends(mapped);
+      }
+      setLoading(false);
+    };
+
+    loadFriends();
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // 임시: 콘솔에만 출력
-    // eslint-disable-next-line no-console
-    console.log("새 친구 등록 (임시)", form);
-    setForm({ realName: "", memo: "" });
+    if (!form.realName.trim()) return;
+
+    setLoading(true);
+    setError(null);
+
+    const { data, error: insertError } = await supabase
+      .from("friends")
+      .insert({
+        real_name: form.realName.trim(),
+        memo: form.memo.trim() || null,
+      })
+      .select("*")
+      .single();
+
+    if (insertError) {
+      // eslint-disable-next-line no-console
+      console.error(insertError);
+      setError("친구를 저장하는 중 문제가 발생했습니다.");
+    } else if (data) {
+      const newFriend: Friend = {
+        id: data.id,
+        realName: data.real_name,
+        memo: data.memo,
+        createdAt: data.created_at,
+      };
+      setFriends((prev) => [...prev, newFriend]);
+      setForm({ realName: "", memo: "" });
+    }
+
+    setLoading(false);
   };
 
   return (
@@ -64,19 +122,48 @@ export default function FriendsPage() {
             </div>
             <button
               type="submit"
-              className="inline-flex items-center justify-center rounded-full bg-emerald-500 px-5 py-2.5 text-sm font-medium text-zinc-950 shadow-sm transition hover:bg-emerald-400"
+              disabled={loading}
+              className="inline-flex items-center justify-center rounded-full bg-emerald-500 px-5 py-2.5 text-sm font-medium text-zinc-950 shadow-sm transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              친구 추가 (임시)
+              {loading ? "저장 중..." : "친구 추가"}
             </button>
-            <p className="mt-2 text-xs text-zinc-500">
-              지금은 UI만 만든 상태고, 다음 단계에서 Supabase DB와 실제로 연결할
-              예정입니다.
-            </p>
+            {error && (
+              <p className="mt-2 text-xs text-red-400">
+                {error}
+              </p>
+            )}
           </form>
+        </section>
+
+        <section className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6">
+          <h2 className="text-sm font-semibold">등록된 친구 목록</h2>
+          {friends.length === 0 ? (
+            <p className="mt-3 text-sm text-zinc-500">
+              아직 등록된 친구가 없습니다. 위 폼에서 실명을 추가해 주세요.
+            </p>
+          ) : (
+            <ul className="mt-3 divide-y divide-zinc-800 text-sm">
+              {friends.map((f) => (
+                <li
+                  key={f.id}
+                  className="flex items-center justify-between py-2"
+                >
+                  <div>
+                    <p className="font-medium">{f.realName}</p>
+                    {f.memo && (
+                      <p className="text-xs text-zinc-400">{f.memo}</p>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-zinc-500">
+                    {new Date(f.createdAt).toLocaleString()}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
       </main>
     </div>
   );
 }
-
 
