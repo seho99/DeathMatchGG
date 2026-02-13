@@ -202,11 +202,19 @@ CLOVA_OCR_SECRET_KEY=여기에_Secret_Key_붙여넣기
 - **2026-02-13 (오후)**
   - OCR 자동 채우기 기능 추가
     - CLOVA OCR API 연동 (`src/lib/ocr.ts`)
-      - API Gateway 연동 없이 일반 OCR API 직접 사용
-      - 환경변수: `CLOVA_OCR_SECRET_KEY`만 필요
+      - API Gateway 연동 완료
+      - `node-fetch@2` 패키지 추가 (form-data 호환성)
+      - 환경변수: `CLOVA_OCR_API_URL`, `CLOVA_OCR_SECRET_KEY` 필요
     - `/api/upload` 에서 이미지 업로드 시 OCR 자동 수행
     - `/upload/review` 페이지에서 OCR 결과를 인풋창에 자동 채우기
+    - OCR 파싱 로직 기본 구현 (K/D/A 파싱 완료, 닉네임/챔피언/딜량/골드/CS 파싱 개선 필요)
     - OCR 실패 시에도 수동 입력 가능하도록 처리
+  - 전적 검토 및 저장 페이지 구현 (`/upload/review`)
+    - 스크린샷 미리보기
+    - OCR 결과 자동 채우기
+    - 시즌, 게임 시간 입력
+    - 친구 실명 매핑
+    - DB 저장 기능 완료
   - Supabase RLS 정책 추가 (`supabase_schema.sql` 업데이트)
     - `friends`, `matches`, `player_matches` 테이블에 익명 사용자 읽기/쓰기 허용
   - 친구 관리 페이지 Supabase 연동 완료 (`/friends`)
@@ -222,5 +230,18 @@ CLOVA_OCR_SECRET_KEY=여기에_Secret_Key_붙여넣기
   - 이 `PROJECT_GUIDE.md` 파일 생성.
 
 앞으로 기능을 추가하거나 수정할 때마다, 이 변경 이력 섹션에 날짜와 함께 어떤 변경을 했는지 간단히 적어 나갈 예정입니다.
+
+---
+
+## 9. 다음 개발 단계
+
+자세한 내용은 `DEVELOPMENT_STATUS.md` 파일을 참고하세요.
+
+**주요 다음 작업:**
+1. OCR 파싱 로직 개선 (닉네임, 챔피언, 딜량, 골드, CS 추출 정확도 향상)
+2. 전적 검색/통계 페이지 구현 (`/search` 또는 `/friend/[id]`)
+3. 시즌별 탭 기능
+4. 챔피언별 승률 통계
+5. 친구 시너지 통계
 
 
